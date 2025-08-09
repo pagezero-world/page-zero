@@ -1,0 +1,51 @@
+---
+export const prerender = false;
+import BaseLayout from "../../../../layouts/BaseLayout.astro";
+const { id } = Astro.params;
+---
+<BaseLayout title="DM • Lore">
+  <section class="page-block">
+    <h1>Lore</h1>
+    <p>World notes, factions, timelines—anything you want handy.</p>
+
+    <label class="stack">
+      <span>Lore Notes</span>
+      <textarea id="loreText" rows="12" class="box" placeholder="Write freely…"></textarea>
+    </label>
+
+    <button id="saveLore" class="btn-outline">Save Lore</button>
+  </section>
+
+  <script type="module" define:vars={{ id }}>
+    import { dbPromise } from "../../../../lib/firebase/client.js";
+    import { doc, getDoc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+    const textEl = document.getElementById("loreText");
+    const btn = document.getElementById("saveLore");
+
+    (async () => {
+      try {
+        const db = await dbPromise;
+        const ref = doc(db, "campaigns", id);
+        const snap = await getDoc(ref);
+        if (snap.exists()) {
+          textEl.value = snap.data()?.lore || "";
+        }
+      } catch (e) {
+        console.warn("Load lore failed:", e);
+      }
+    })();
+
+    btn?.addEventListener("click", async () => {
+      try {
+        const db = await dbPromise;
+        const ref = doc(db, "campaigns", id);
+        await setDoc(ref, { lore: textEl.value, updatedAt: serverTimestamp() }, { merge: true });
+        alert("Lore saved!");
+      } catch (e) {
+        console.error(e);
+        alert("Could not save lore.");
+      }
+    });
+  </script>
+</BaseLayout>

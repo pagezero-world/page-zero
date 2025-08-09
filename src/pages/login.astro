@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Page Zero Login</title>
+    <style>
+      body{margin:0;background:#1e1e1e;color:#f0f0f0;font-family:system-ui,sans-serif}
+      main{max-width:420px;margin:12vh auto;padding:24px}
+      input{width:100%;padding:.6rem .7rem;border-radius:8px;border:1px solid #2a2a2a;background:#111;color:#eee}
+      label{display:block;margin:.25rem 0 .4rem}
+      .row{display:flex;gap:.75rem;margin-top:.75rem}
+      button{flex:1;background:transparent;color:#e9e9e9;border:1px solid #2a2a2a;padding:.7rem .9rem;border-radius:8px;cursor:pointer}
+      button:hover{background:rgba(255,255,255,.06);border-color:rgba(230,214,181,.45)}
+      #msg{margin-top:1rem;font-size:.95rem;opacity:.95}
+      #msg.error{color:#ffb3b3}
+      #msg.notice{color:#e6d6b5}
+      .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:50}
+      .modal{background:#0e0e0e;border:1px solid #2a2a2a;border-radius:12px;max-width:480px;width:92%;padding:18px;position:relative}
+      .modal h2{margin:.25rem 0 .75rem}
+      .modal .close{position:absolute;top:10px;right:12px;cursor:pointer;border:none;background:transparent;color:#bbb;font-size:1.1rem}
+      .modal .actions{display:flex;gap:.75rem;margin-top:.9rem}
+      .hint{opacity:.8;font-size:.9rem;margin-top:.4rem}
+      .grid{display:grid;grid-template-columns:1fr 1fr;gap:.75rem}
+      .full{grid-column:1 / -1}
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1 style="margin-bottom:1rem;">Page Zero Login</h1>
+
+      <label>Email</label>
+      <input id="email" type="email" autocomplete="username" />
+
+      <label style="margin-top:.8rem;">Password</label>
+      <input id="password" type="password" autocomplete="current-password" />
+
+      <div class="row">
+        <button id="loginBtn" type="button">Log In</button>
+        <button id="openSignup" type="button">Sign Up</button>
+      </div>
+
+      <div class="row" style="margin-top:.5rem">
+        <button id="resendBtn" type="button">Resend verification</button>
+        <button id="forgotBtn" type="button">Forgot password</button>
+      </div>
+
+      <div id="msg" role="status" aria-live="polite"></div>
+      <div class="hint">Tip: check Spam/Promotions for the verification email.</div>
+    </main>
+
+    <!-- Sign Up Modal -->
+    <div id="backdrop" class="modal-backdrop" aria-hidden="true">
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="suTitle">
+        <button class="close" id="closeSignup" aria-label="Close">✕</button>
+        <h2 id="suTitle">Create your account</h2>
+
+        <div class="grid">
+          <div><label>First name</label><input id="suFirst" type="text" autocomplete="given-name" /></div>
+          <div><label>Last name</label><input id="suLast" type="text" autocomplete="family-name" /></div>
+          <div class="full"><label>Email</label><input id="suEmail" type="email" autocomplete="username" /></div>
+          <div class="full"><label>Confirm email</label><input id="suEmail2" type="email" autocomplete="username" /></div>
+          <div class="full"><label>Password</label><input id="suPassword" type="password" autocomplete="new-password" /></div>
+        </div>
+
+        <div class="actions">
+          <button id="submitSignup" type="button">Send verification email</button>
+          <button id="cancelSignup" type="button">Cancel</button>
+        </div>
+        <div id="suMsg" class="hint"></div>
+      </div>
+    </div>
+
+    <script type="module">
+      import { login, signupWithProfile, resendVerification, forgotPassword } from "/firebase/auth.js";
+
+      const msg = document.getElementById("msg");
+      const emailEl = document.getElementById("email");
+      const passEl  = document.getElementById("password");
+      const okEmail = (v)=>/^\S+@\S+\.\S+$/.test(v||"");
+      const okName  = (v)=>!!(v && v.trim().length >= 2);
+
+      // Banner after verify
+      if (new URLSearchParams(location.search).get("verified") === "1") {
+        msg.textContent = "Email verified! Please log in.";
+        msg.className = "notice";
+      }
+
+      // LOGIN
+      document.getElementById("loginBtn")?.addEventListener("click", async () => {
+        const email = emailEl.value.trim(), password = passEl.value;
+        msg.textContent = ""; msg.className = "";
+        if (!email || !password) { msg.textContent = "Enter email and password."; msg.className="error"; return; }
+        try {
+          await login(email, password);
+          location.href = "/dashboard";
+        } catch (e) {
+          msg.textContent = e?.message || "Login failed. Please try again.";
+          msg.className = "error";
+        }
+      });
+
+      // RESEND VERIFICATION
+      document.getElementById("resendBtn")?.addEventListener("click", async () => {
+        const email = emailEl.value.trim(), password = passEl.value;
+        msg.textContent = ""; msg.className = "";
+        if (!email || !password) { msg.textContent = "Enter your email and password first."; msg.className="error"; return; }
+        try {
+          const r = await resendVerification(email, password);
+          if (r?.alreadyVerified) {
+            msg.textContent = "This account is already verified. You can log in now.";
+            msg.className = "notice";
+          } else {
+            msg.textContent = `Verification email re-sent to ${email}.`;
+            msg.className = "notice";
+          }
+        } catch (e) {
+          msg.textContent = e?.code || e?.message || "Could not resend verification.";
+          msg.className = "error";
+        }
+      });
+
+      // FORGOT PASSWORD
+      document.getElementById("forgotBtn")?.addEventListener("click", async () => {
+        const email = emailEl.value.trim();
+        msg.textContent = ""; msg.className = "";
+        if (!okEmail(email)) { msg.textContent = "Enter the email for your account."; msg.className="error"; return; }
+        try {
+          await forgotPassword(email);
+          msg.textContent = `Password reset email sent to ${email}.`;
+          msg.className = "notice";
+        } catch (e) {
+          msg.textContent = e?.code || e?.message || "Could not send password reset email.";
+          msg.className = "error";
+        }
+      });
+
+      // SIGN UP MODAL BEHAVIOR
+      const backdrop = document.getElementById("backdrop");
+      const openSignup = document.getElementById("openSignup");
+      const closeSignup = document.getElementById("closeSignup");
+      const cancelSignup = document.getElementById("cancelSignup");
+      const submitSignup = document.getElementById("submitSignup");
+      const suFirst = document.getElementById("suFirst");
+      const suLast  = document.getElementById("suLast");
+      const suEmail = document.getElementById("suEmail");
+      const suEmail2= document.getElementById("suEmail2");
+      const suPass  = document.getElementById("suPassword");
+      const suMsg   = document.getElementById("suMsg");
+
+      const showModal = () => { backdrop.style.display = "flex"; backdrop.setAttribute("aria-hidden","false"); suEmail.value = emailEl.value; suEmail2.value=""; suPass.value=""; suFirst.focus(); suMsg.textContent=""; };
+      const hideModal = () => { backdrop.style.display = "none"; backdrop.setAttribute("aria-hidden","true"); };
+
+      openSignup?.addEventListener("click", showModal);
+      closeSignup?.addEventListener("click", hideModal);
+      cancelSignup?.addEventListener("click", hideModal);
+      backdrop?.addEventListener("click",(e)=>{ if(e.target===backdrop) hideModal(); });
+      document.addEventListener("keydown",(e)=>{ if(e.key==="Escape" && backdrop.getAttribute("aria-hidden")==="false") hideModal(); });
+
+      // SIGN UP SUBMIT
+      submitSignup?.addEventListener("click", async () => {
+        const first = suFirst.value.trim();
+        const last  = suLast.value.trim();
+        const email = suEmail.value.trim();
+        const email2= suEmail2.value.trim();
+        const password = suPass.value;
+
+        suMsg.textContent = "";
+        if (!okName(first)) { suMsg.textContent="Enter your first name."; return; }
+        if (!okName(last))  { suMsg.textContent="Enter your last name."; return; }
+        if (!okEmail(email)) { suMsg.textContent="Enter a valid email."; return; }
+        if (email.toLowerCase() !== email2.toLowerCase()) { suMsg.textContent="Emails do not match."; return; }
+        if (!password || password.length < 6) { suMsg.textContent="Password must be at least 6 characters."; return; }
+
+        try {
+          await signupWithProfile({ first, last, email, password });
+          hideModal();
+          emailEl.value = email; passEl.value = "";
+          msg.textContent = `We sent a verification email to ${email}. Check your inbox (and Spam/Promotions), then log in.`;
+          msg.className = "notice";
+        } catch (e) {
+          suMsg.textContent = e?.code || e?.message || "Sign up failed.";
+        }
+      });
+    </script>
+  </body>
+</html>

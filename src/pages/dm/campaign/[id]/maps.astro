@@ -1,0 +1,16 @@
+---
+export const prerender = false;
+import BaseLayout from "../../../../layouts/BaseLayout.astro";
+const { id } = Astro.params;
+---
+<BaseLayout title="DM • Maps">
+  <section class="page-block">
+    <h1>Maps</h1>
+    <p>Manage world & battle maps for this adventure.</p>
+
+    <div class="grid">
+      <a class="card" href="#">➕ Upload Map (coming soon)</a>
+      <div class="card">No maps yet.</div>
+    </div>
+  </section>
+</BaseLayout>

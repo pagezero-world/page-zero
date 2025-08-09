@@ -1,0 +1,46 @@
+---
+export const prerender = false;
+
+import BaseLayout from "../../../../layouts/BaseLayout.astro";
+const { id } = Astro.params;
+---
+<BaseLayout>
+  <section class="page-block">
+    <h1 id="campTitle">Campaign: {id}</h1>
+    <p>
+      This is your DM overview. Use the links below to manage setup, maps, NPCs, lore, invites,
+      adventurers, and logs for this adventure.
+    </p>
+
+    <div class="grid">
+      <a class="card" href={`/dm/campaigns/${id}/setup`}>🛠️ Setup</a>
+      <a class="card" href={`/dm/campaigns/${id}/maps`}>🗺️ Maps</a>
+      <a class="card" href={`/dm/campaigns/${id}/npcs`}>🧙 NPCs</a>
+      <a class="card" href={`/dm/campaigns/${id}/lore`}>📖 Lore</a>
+      <a class="card" href={`/dm/campaigns/${id}/invites`}>✉️ Invite Adventurers</a>
+      <a class="card" href={`/dm/campaigns/${id}/adventurers`}>👥 Adventurers</a>
+      <a class="card" href={`/dm/campaigns/${id}/logs`}>📓 Logs</a>
+    </div>
+  </section>
+
+  <script type="module" define:vars={{ id }}>
+    (async () => {
+      try {
+        const { db } = await import('/src/lib/firebase/client.js');
+        const { doc, getDoc } = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js');
+
+        const snap = await getDoc(doc(db, 'campaigns', id));
+        if (snap.exists()) {
+          const title = snap.data()?.title;
+          if (title) {
+            document.getElementById('campTitle').textContent = `Campaign: ${title}`;
+          }
+        } else {
+          console.warn('Campaign doc does not exist:', id);
+        }
+      } catch (e) {
+        console.error('Firestore read failed:', e);
+      }
+    })();
+  </script>
+</BaseLayout>

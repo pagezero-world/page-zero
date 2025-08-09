@@ -1,0 +1,250 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+---
+
+<BaseLayout>
+  <div class="dashboard-content">
+    <h1>Dungeon Master Dashboard</h1>
+
+    <section class="campaign-switcher">
+      <label for="campaignSelect">Current Campaign:</label>
+      <select id="campaignSelect"></select>
+      <button id="newCampaignBtn">+ New Campaign</button>
+    </section>
+
+    <div class="grid2">
+      <!-- Invite / Code -->
+      <section class="card">
+        <h2>Invite Players</h2>
+        <p>Share this one-time code with your players. They’ll join at <code>/join</code>.</p>
+        <div class="row">
+          <input id="joinCode" type="text" readonly />
+          <button id="copyCodeBtn">Copy</button>
+        </div>
+        <div class="row">
+          <button id="genCodeBtn">Generate New Code</button>
+        </div>
+        <small id="inviteMsg" class="hint"></small>
+      </section>
+
+      <!-- Members -->
+      <section class="card">
+        <h2>Members</h2>
+        <ul id="membersList" class="list"></ul>
+        <small class="hint">Players appear here after they join with your code.</small>
+      </section>
+    </div>
+  </div>
+
+  <!-- Create Campaign Modal -->
+  <div id="modalBackdrop" class="modal-backdrop" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <button class="close" id="closeModal" aria-label="Close">✕</button>
+      <h2 id="modalTitle">Create Campaign</h2>
+      <label>Name</label>
+      <input id="campaignName" type="text" placeholder="E.g. Shadows of Highgrove" />
+      <div class="actions">
+        <button id="createCampaignConfirm">Create</button>
+        <button id="cancelModal">Cancel</button>
+      </div>
+      <div id="modalMsg" class="hint"></div>
+    </div>
+  </div>
+
+  <style>
+    .campaign-switcher { display:flex; gap:.5rem; align-items:center; margin-bottom:1rem; }
+    select, button, input[type="text"] { padding:.5rem; border-radius:6px; border:1px solid #333; background:#222; color:#eee; }
+    button { cursor:pointer; }
+    button:hover { background:#333; }
+    .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
+    .card { background:rgba(255,255,255,.03); padding:1rem; border-radius:10px; border:1px solid #2a2a2a; }
+    .row { display:flex; gap:.5rem; margin-top:.5rem; }
+    .hint { opacity:.8; font-size:.9rem; }
+    .list { list-style:none; padding:0; margin:.5rem 0 0; }
+    .list li { padding:.5rem; border-bottom:1px solid #2a2a2a; display:flex; justify-content:space-between; gap:.5rem; }
+    .badge { font-size:.75rem; opacity:.9; border:1px solid #444; padding:.1rem .35rem; border-radius:6px; }
+  </style>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+    import {
+      getFirestore, collection, addDoc, query, where, getDocs, orderBy,
+      serverTimestamp, doc, updateDoc, getDoc, setDoc
+    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+    // Robust loader: works with /firebase/firebase-config.js OR /firebase-config.js
+    async function loadFirebase() {
+      const tries = ["/firebase/firebase-config.js", "/firebase-config.js"];
+      for (const p of tries) {
+        try {
+          const m = await import(p);
+          if (m?.app) return { app: m.app, auth: m.auth ?? getAuth(m.app), db: m.db ?? getFirestore(m.app) };
+          if (m?.firebaseConfig) {
+            const app = initializeApp(m.firebaseConfig);
+            return { app, auth: getAuth(app), db: getFirestore(app) };
+          }
+        } catch {}
+      }
+      throw new Error("Could not load Firebase config from /firebase(-)/firebase-config.js");
+    }
+
+    document.addEventListener("DOMContentLoaded", async () => {
+      // DOM refs (must exist)
+      const campaignSelect = document.getElementById("campaignSelect");
+      const newBtn         = document.getElementById("newCampaignBtn");
+      const modal          = document.getElementById("modalBackdrop");
+      const closeModal     = document.getElementById("closeModal");
+      const cancelModal    = document.getElementById("cancelModal");
+      const createConfirm  = document.getElementById("createCampaignConfirm");
+      const nameInput      = document.getElementById("campaignName");
+      const modalMsg       = document.getElementById("modalMsg");
+
+      const joinCodeEl     = document.getElementById("joinCode");
+      const genCodeBtn     = document.getElementById("genCodeBtn");
+      const copyCodeBtn    = document.getElementById("copyCodeBtn");
+      const inviteMsg      = document.getElementById("inviteMsg");
+      const membersList    = document.getElementById("membersList");
+
+      if (!campaignSelect) { console.error("campaignSelect not found."); return; }
+
+      const showModal = () => { modal.style.display = "flex"; nameInput.value=""; modalMsg.textContent=""; nameInput.focus(); };
+      const hideModal = () => { modal.style.display = "none"; };
+
+      newBtn.addEventListener("click", showModal);
+      closeModal.addEventListener("click", hideModal);
+      cancelModal.addEventListener("click", hideModal);
+      modal.addEventListener("click", e => { if (e.target === modal) hideModal(); });
+
+      const makeCode = () =>
+        Array.from(crypto.getRandomValues(new Uint8Array(6)))
+          .map(n => "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"[n % 32]).join("");
+
+      let fb, currentUid = null, selectedCampaignId = null;
+
+      async function loadCampaigns() {
+        campaignSelect.innerHTML = "";
+        const q = query(collection(fb.db, "campaigns"), where("ownerUid", "==", currentUid), orderBy("createdAt", "desc"));
+        const snap = await getDocs(q);
+        snap.forEach(docSnap => {
+          const opt = document.createElement("option");
+          opt.value = docSnap.id;
+          opt.textContent = docSnap.data().name;
+          campaignSelect.appendChild(opt);
+        });
+        if (campaignSelect.options.length) {
+          selectedCampaignId = campaignSelect.value;
+          await loadJoinCode();
+          await loadMembers();
+        } else {
+          selectedCampaignId = null;
+          joinCodeEl.value = "";
+          membersList.innerHTML = "<li>No campaigns yet.</li>";
+        }
+      }
+
+      async function loadJoinCode() {
+        if (!selectedCampaignId) return;
+        const cRef = doc(fb.db, "campaigns", selectedCampaignId);
+        const cSnap = await getDoc(cRef);
+        joinCodeEl.value = cSnap.exists() ? (cSnap.data().joinCode || "") : "";
+      }
+
+      genCodeBtn.addEventListener("click", async () => {
+        inviteMsg.textContent = "";
+        if (!selectedCampaignId) return;
+        try {
+          const code = makeCode();
+          await updateDoc(doc(fb.db, "campaigns", selectedCampaignId), {
+            joinCode: code,
+            joinCodeUpdatedAt: serverTimestamp()
+          });
+          joinCodeEl.value = code;
+          inviteMsg.textContent = "New code generated.";
+          campaignSelect.classList.add("glow");
+          setTimeout(() => campaignSelect.classList.remove("glow"), 1000);
+        } catch (e) {
+          inviteMsg.textContent = e.message || "Could not generate code.";
+          console.error(e);
+        }
+      });
+
+      copyCodeBtn.addEventListener("click", async () => {
+        if (!joinCodeEl.value) { inviteMsg.textContent = "No code to copy."; return; }
+        await navigator.clipboard.writeText(joinCodeEl.value);
+        inviteMsg.textContent = "Copied!";
+        setTimeout(()=> inviteMsg.textContent = "", 1200);
+      });
+
+      async function loadMembers() {
+        membersList.innerHTML = "";
+        if (!selectedCampaignId) return;
+        const q = query(collection(fb.db, `campaigns/${selectedCampaignId}/members`), orderBy("joinedAt", "asc"));
+        const snap = await getDocs(q);
+        if (snap.empty) {
+          membersList.innerHTML = "<li>No members yet.</li>";
+          return;
+        }
+        snap.forEach(m => {
+          const d = m.data();
+          const li = document.createElement("li");
+          li.innerHTML = `<span>${d.displayEmail || m.id}</span><span class="badge">${d.role || 'player'}</span>`;
+          membersList.appendChild(li);
+        });
+      }
+
+      campaignSelect.addEventListener("change", async () => {
+        selectedCampaignId = campaignSelect.value;
+        await loadJoinCode();
+        await loadMembers();
+        campaignSelect.classList.add("glow");
+        setTimeout(() => campaignSelect.classList.remove("glow"), 1000);
+      });
+
+      createConfirm.addEventListener("click", async () => {
+        const name = nameInput.value.trim();
+        if (!name) { modalMsg.textContent = "Please enter a name."; return; }
+        try {
+          const docRef = await addDoc(collection(fb.db, "campaigns"), {
+            name,
+            ownerUid: currentUid,
+            createdAt: serverTimestamp()
+          });
+          await setDoc(doc(fb.db, `campaigns/${docRef.id}/members/${currentUid}`), {
+            role: "dm",
+            joinedAt: serverTimestamp(),
+            displayEmail: fb.auth.currentUser?.email || ""
+          });
+
+          hideModal();
+          await loadCampaigns();
+          campaignSelect.value = docRef.id;
+          selectedCampaignId = docRef.id;
+          campaignSelect.classList.add("glow");
+          setTimeout(() => campaignSelect.classList.remove("glow"), 1000);
+        } catch (e) {
+          modalMsg.textContent = e.message || "Error creating campaign.";
+          console.error(e);
+        }
+      });
+
+      // Boot Firebase + Auth gate
+      try {
+        fb = await loadFirebase();
+      } catch (e) {
+        console.error(e);
+        alert("Firebase failed to initialize. Check your firebase-config.js path/exports.");
+        return;
+      }
+
+      onAuthStateChanged(fb.auth, async (user) => {
+        if (!user) { window.location.href = "/login"; return; }
+        currentUid = user.uid;
+        await loadCampaigns();
+        // Pulse 3x on initial load (requires the CSS in global.css)
+        campaignSelect.classList.add("glow");
+        setTimeout(() => campaignSelect.classList.remove("glow"), 3000);
+      });
+    });
+  </script>
+</BaseLayout>

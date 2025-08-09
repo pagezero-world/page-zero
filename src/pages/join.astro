@@ -1,0 +1,76 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+---
+
+<BaseLayout>
+  <div class="dashboard-content">
+    <h1>Join a Campaign</h1>
+    <p>Paste the code your DM gave you.</p>
+
+    <div class="row">
+      <input id="codeInput" type="text" placeholder="e.g. 7KJ4MZ" />
+      <button id="joinBtn">Join</button>
+    </div>
+    <small id="msg" class="hint"></small>
+  </div>
+
+  <style>
+    .row { display:flex; gap:.5rem; margin-top:.5rem; }
+    input { padding:.6rem; border-radius:6px; border:1px solid #333; background:#222; color:#eee; }
+    button { padding:.6rem .9rem; border-radius:6px; border:1px solid #333; background:#222; color:#eee; cursor:pointer; }
+    button:hover { background:#333; }
+    .hint { opacity:.8; }
+  </style>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+    import { getFirestore, collection, query, where, getDocs, doc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import { firebaseConfig } from "/firebase-config.js";
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    const codeEl = document.getElementById("codeInput");
+    const btn = document.getElementById("joinBtn");
+    const msg = document.getElementById("msg");
+
+    let currentUid = null;
+    let currentEmail = "";
+
+    onAuthStateChanged(auth, (u) => {
+      if (!u) { window.location.href = "/login?next=/join"; return; }
+      currentUid = u.uid;
+      currentEmail = u.email || "";
+    });
+
+    btn.addEventListener("click", async () => {
+      msg.textContent = "";
+      const code = (codeEl.value || "").replace(/\s+/g,"").toUpperCase();
+      if (!code || code.length < 6) { msg.textContent = "Enter a valid 6-character code."; return; }
+
+      try {
+        // Find campaign with this joinCode
+        const q = query(collection(db, "campaigns"), where("joinCode", "==", code));
+        const snap = await getDocs(q);
+        if (snap.empty) { msg.textContent = "Code not found. Check with your DM."; return; }
+
+        const campaign = snap.docs[0]; // first match
+        const campaignId = campaign.id;
+
+        // Write/overwrite member doc
+        await setDoc(doc(db, `campaigns/${campaignId}/members/${currentUid}`), {
+          role: "player",
+          joinedAt: serverTimestamp(),
+          displayEmail: currentEmail
+        }, { merge: true });
+
+        msg.textContent = "Joined! Redirecting…";
+        setTimeout(() => { window.location.href = "/dashboard"; }, 800);
+      } catch (e) {
+        msg.textContent = e.message || "Could not join the campaign.";
+      }
+    });
+  </script>
+</BaseLayout>

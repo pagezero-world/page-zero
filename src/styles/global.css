@@ -1,0 +1,169 @@
+/* ========== Base (Dark) ========== */
+body.dark {
+  margin: 0;
+  padding: 0;
+  font-family: system-ui, sans-serif;
+  background: #1e1e1e;
+  color: #f0f0f0;
+}
+
+/* Container is just a wrapper; the sidebar is fixed */
+.app-container {
+  min-height: 100vh;
+}
+
+/* ========== Sidebar (fixed, full height) ========== */
+.sidebar {
+  position: fixed;
+  inset: 0 auto 0 0;
+  width: 260px;
+  background: #121212;
+  padding: 1.25rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  border-right: 1px solid #1b1b1b;
+  overflow: hidden;
+  transition: width .25s ease;
+  z-index: 10;
+}
+.sidebar.collapsed { width: 84px; }
+
+/* Brand */
+.brand {
+  display: flex; align-items: center; gap: .6rem;
+  padding: .25rem .25rem .75rem;
+  text-decoration: none; color: #e6d6b5;
+}
+.logo-img {
+  width: 140px; height: auto;
+  margin: .25rem auto 1rem;
+  display: block;
+  transition: width .25s ease, margin .25s ease;
+}
+.sidebar.collapsed .logo-img { width: 44px; margin: .25rem auto .5rem; }
+.logo-text { display: none; }
+
+/* ========== Navigation ========== */
+.sidebar nav { display: flex; flex-direction: column; gap: .25rem; margin-top: .25rem; }
+/* Only show active role’s nav; JS adds .active */
+nav[data-role] { display: none; }
+nav[data-role].active { display: flex; flex-direction: column; }
+
+.nav-item {
+  display: flex; align-items: center; gap: .85rem;
+  padding: .75rem .9rem; border-radius: 8px;
+  color: #e9e9e9; text-decoration: none; line-height: 1; white-space: nowrap;
+  transition: background .2s ease, box-shadow .2s ease, color .2s ease, transform .12s ease;
+}
+.nav-item:hover {
+  background: rgba(255,255,255,0.06);
+  box-shadow: inset 0 0 0 1px rgba(230,214,181,.35), 0 0 10px rgba(230,214,181,.15);
+}
+.nav-item.active {
+  background: rgba(230,214,181,0.10);
+  box-shadow: inset 3px 0 0 0 #d4c29b, 0 0 16px rgba(230,214,181,.18);
+  color: #fff;
+}
+
+/* ========== Collapsed behavior ========== */
+.sidebar.collapsed nav .nav-item span { display: none; }
+.sidebar.collapsed .nav-item {
+  justify-content: center; font-size: 1.35rem; padding: .7rem 0;
+}
+
+/* Tooltip support for collapsed mode */
+.sidebar.collapsed .nav-item { position: relative; }
+.sidebar.collapsed .nav-item[title]:hover::after {
+  content: attr(title);
+  position: absolute; left: 100%; top: 50%; transform: translateY(-50%);
+  background: #2a2a2a; color: #fff; padding: 4px 8px; border-radius: 4px;
+  white-space: nowrap; margin-left: 8px; font-size: 0.85rem;
+  box-shadow: 0 0 8px rgba(0,0,0,0.4);
+}
+
+/* ========== Footer / Buttons ========== */
+.sidebar-footer {
+  margin-top: auto; display: flex; flex-direction: column; gap: .65rem;
+}
+.user-email { font-size: .9rem; color: #d9d0be; }
+
+.sidebar-footer button,
+.btn-outline {
+  width: 100%; background: transparent; color: #e9e9e9;
+  border: 1px solid #2a2a2a; padding: .75rem .9rem; border-radius: 8px;
+  cursor: pointer; display: flex; align-items: center; justify-content: center; gap: .65rem;
+  transition: background .2s ease, border-color .2s ease, color .2s ease, transform .1s ease, box-shadow .2s ease;
+}
+.sidebar-footer button:hover,
+.btn-outline:hover {
+  background: rgba(255,255,255,0.06);
+  border-color: rgba(230,214,181,.45);
+  box-shadow: 0 0 10px rgba(230,214,181,.12);
+}
+.sidebar-footer button:active,
+.btn-outline:active { transform: translateY(1px); }
+
+/* Collapsed: hide email + mode toggle for a clean skinny bar */
+.sidebar.collapsed .user-email { display: none; }
+.sidebar.collapsed #modeToggle { display: none; }
+
+.sidebar.collapsed .sidebar-footer button span { display: none; }
+.sidebar.collapsed .sidebar-footer button {
+  justify-content: center; font-size: 1.35rem; padding: .7rem 0;
+}
+
+/* Collapse/Expand icon swap (two SVGs inside the same button) */
+#toggleSidebar .icon { display: inline-flex; }
+.sidebar.collapsed #icoExpand { display: inline-flex !important; }
+.sidebar.collapsed #icoCollapse { display: none !important; }
+#icoExpand[hidden], #icoCollapse[hidden] { display: none !important; }
+
+/* Segmented Adventurer | DM toggle (for DMs) */
+.seg-toggle {
+  display: grid; grid-auto-flow: column; gap: 4px;
+  background: #191919; border: 1px solid #2a2a2a; border-radius: 10px;
+  padding: 4px; margin-bottom: .5rem;
+}
+.seg {
+  border: 0; background: transparent; color: #e6e6e6;
+  padding: .5rem .75rem; border-radius: 8px; cursor: pointer;
+}
+.seg[aria-selected="true"] {
+  background: rgba(230,214,181,.12);
+  box-shadow: inset 0 0 0 1px rgba(230,214,181,.35);
+}
+
+/* ========== Main content (shift with sidebar) ========== */
+.main-content {
+  margin-left: 260px; padding: 2rem; min-height: 100vh; transition: margin-left .25s ease;
+}
+.sidebar.collapsed ~ .main-content { margin-left: 84px; }
+
+/* ========== Page content niceties ========== */
+.page-content, .dashboard-content {
+  max-width: 980px; margin: 0 auto; padding: 2rem 2.5rem;
+}
+.dashboard-content { max-width: 800px; padding: 2rem; }
+.dashboard-content h1 { font-size: 2.5rem; margin-bottom: 1rem; color: #fff; }
+.dashboard-content section { margin-top: 2rem; }
+.dashboard-content ul { list-style: none; padding: 0; }
+.dashboard-content li {
+  margin-bottom: 1rem; line-height: 1.5;
+  background: rgba(255,255,255,0.03); padding: 1rem; border-left: 4px solid #d4af37; border-radius: 6px;
+}
+
+/* ========== Optional pulse (e.g., campaign picker) ========== */
+@keyframes campaignPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(230,214,181,0.8); border-color: rgba(230,214,181,0.9); }
+  50%      { box-shadow: 0 0 10px 4px rgba(230,214,181,0.8); border-color: rgba(230,214,181,1); }
+}
+#campaignSelect.glow { animation: campaignPulse 0.8s ease-in-out 3; }
+
+/* Utilities */
+.page-block { padding: 1.5rem; }
+.grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fill,minmax(160px,1fr)); }
+.card { display:block; padding:1rem; border:1px solid #2a2a2a; border-radius:.75rem; text-decoration:none; color:inherit; }
+.card:hover { border-color:#444; }
+.stack { display:grid; gap:1rem; }
+.box { border:1px solid #2a2a2a; border-radius:.75rem; padding:1rem; background:transparent; }

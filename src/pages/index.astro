@@ -1,11 +1,45 @@
----
-import Welcome from '../components/Welcome.astro';
-import Layout from '../layouts/Layout.astro';
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Page Zero</title>
+    <link rel="stylesheet" href="/styles/global.css" />
+  </head>
+  <body class="dark">
+    <div class="app-container">
+      <!-- Sidebar -->
+      <aside class="sidebar">
+        <div class="logo">
+          <img src="/logo.svg" class="logo-img" alt="Page Zero Logo" />
+          <span class="logo-text">Page Zero</span>
+        </div>
 
-// Welcome to Astro! Wondering what to do next? Check out the Astro documentation at https://docs.astro.build
-// Don't want to use any of this? Delete everything in this file, the `assets`, `components`, and `layouts` directories, and start fresh.
----
+        <nav class="nav-links">
+          <a href="/" class="nav-item active">🏠 Home</a>
+          <a href="/characters" class="nav-item">👤 Characters</a>
+          <a href="/session-zero" class="nav-item">🛠 Session 0</a>
+          <a href="/relationships" class="nav-item">🔗 Relationships</a>
+          <a href="/logs" class="nav-item">📜 Logs</a>
+          <a href="/downloads" class="nav-item">⬇ Downloads</a>
+        </nav>
+        <button class="collapse-button">☰</button>
+      </aside>
 
-<Layout>
-	<Welcome />
-</Layout>
+      <!-- Main Content -->
+      <main class="main-content">
+        <h1>Welcome to Page Zero</h1>
+        <p>A toolkit for storytellers, adventurers, and dreamers. Build your world. Chronicle your heroes. Begin on Page Zero.</p>
+      </main>
+    </div>
+  </body>
+</html>
+<script type="module">
+  import { auth } from "/firebase-config.js";
+  import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+  onAuthStateChanged(auth, (user) => {
+    if (!user) {
+      window.location.href = "/login";
+    }
+  });
+</script>

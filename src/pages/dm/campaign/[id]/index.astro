@@ -1,0 +1,29 @@
+---
+export const prerender = false;
+import BaseLayout from "../../../../layouts/BaseLayout.astro";
+---
+
+<BaseLayout title="DM • Campaigns">
+  <div class="dashboard-content">
+    <h1>Campaigns</h1>
+    <p>Choose a campaign to continue your adventure as DM.</p>
+
+    <div class="stack" style="margin-top:1rem;">
+      <a class="btn-outline" href="/dm/campaigns/new">➕ Create New Campaign</a>
+
+      <div id="listBox" class="box">
+        <div id="loading">Loading your campaigns…</div>
+        <ul id="campList" class="stack" style="margin:0;"></ul>
+        <div id="empty" class="stack" style="display:none;">
+          <strong>No campaigns yet.</strong>
+          <span>Start a new adventure by creating your first campaign.</span>
+        </div>
+        <div id="error" style="display:none;color:#ffb4b4;">Could not load campaigns.</div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    // JS logic for fetching & displaying campaigns will go here
+  </script>
+</BaseLayout>

@@ -1,0 +1,323 @@
+---
+// src/layouts/BaseLayout.astro
+import "../styles/global.css";
+
+const path = Astro.url.pathname;
+
+// helper for active route
+function isActive(href: string) {
+  return path === href || path.startsWith(href + "/");
+}
+---
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Page Zero</title>
+
+    <style>
+      :root { --spinner-size: 36px; }
+
+      /* hide app until auth resolves */
+      body.auth-pending .app-container { display: none; }
+
+      .auth-spinner {
+        position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+        background: #0d0d0dcc; backdrop-filter: blur(2px); z-index: 1000;
+      }
+      .ring {
+        width: var(--spinner-size); height: var(--spinner-size);
+        border: 3px solid #2a2a2a; border-top-color: #e6d6b5; border-radius: 50%;
+        animation: spin 1s linear infinite;
+      }
+      @keyframes spin { to { transform: rotate(360deg); } }
+
+      /* only show the active role's nav */
+      nav[data-role] { display: none; }
+      nav[data-role].active { display: flex; flex-direction: column; }
+
+      /* brand text never shows (logo only) */
+      .logo-text { display: none; }
+
+      /* segmented toggle (Adventurer | DM) */
+      .seg-toggle {
+        display: grid;
+        grid-auto-flow: column;
+        gap: 4px;
+        background: #191919;
+        border: 1px solid #2a2a2a;
+        border-radius: 10px;
+        padding: 4px;
+        margin-bottom: .5rem;
+      }
+      .seg {
+        border: 0;
+        background: transparent;
+        color: #e6e6e6;
+        padding: .5rem .75rem;
+        border-radius: 8px;
+        cursor: pointer;
+      }
+      .seg[aria-selected="true"] {
+        background: rgba(230,214,181,.12);
+        box-shadow: inset 0 0 0 1px rgba(230,214,181,.35);
+      }
+
+      /* collapse button icon swap */
+      #toggleSidebar .icon { display: inline-flex; }
+      .sidebar.collapsed #icoExpand { display: inline-flex !important; }
+      .sidebar.collapsed #icoCollapse { display: none !important; }
+      #icoExpand[hidden], #icoCollapse[hidden] { display: none !important; }
+    </style>
+  </head>
+
+  <body class="dark auth-pending" aria-busy="true">
+    <!-- Loading -->
+    <div id="authSpinner" class="auth-spinner" role="status" aria-live="polite">
+      <div class="ring" aria-label="Loading"></div>
+    </div>
+
+    <div class="app-container">
+      <!-- Sidebar -->
+      <aside id="sidebar" class="sidebar" aria-label="Primary">
+        <div class="sidebar-top">
+          <!-- Logo only -->
+          <a class="brand" href="/dashboard" aria-label="Page Zero">
+            <img src="/logo.svg" alt="Page Zero" class="logo-img" />
+            <span class="logo-text">Page Zero</span>
+          </a>
+
+          <!-- ADVENTURER (player) NAV -->
+          <nav id="nav-player" data-role="player">
+            <a class={`nav-item ${isActive('/dashboard') ? 'active': ''}`} href="/dashboard" title="Home">🏠 <span>Home</span></a>
+            <a class={`nav-item ${isActive('/characters') ? 'active': ''}`} href="/characters" title="Characters">🧝 <span>Characters</span></a>
+            <a class={`nav-item ${isActive('/session0') ? 'active': ''}`} href="/session0" title="Session 0">🧭 <span>Session 0</span></a>
+            <a class={`nav-item ${isActive('/relationships') ? 'active': ''}`} href="/relationships" title="Relationship Map">🕸️ <span>Relationship Map</span></a>
+            <a class={`nav-item ${isActive('/logs') ? 'active': ''}`} href="/logs" title="Campaign Logs">📜 <span>Campaign Logs</span></a>
+            <a class={`nav-item ${isActive('/downloads') ? 'active': ''}`} href="/downloads" title="Downloads">⬇️ <span>Downloads</span></a>
+          </nav>
+
+          <!-- DM NAV -->
+          <nav id="nav-dm" data-role="dm">
+            <a class={`nav-item ${isActive('/dm/dashboard') ? 'active': ''}`} href="/dm/dashboard" title="DM Home">🎛️ <span>DM Home</span></a>
+            <a class="nav-item" href="/dm/campaigns" title="Campaigns">🗺️ <span>Campaigns</span></a>
+            <a class={`nav-item ${isActive('/dm/session-0') ? 'active': ''}`} href="/dm/session-0" title="Session 0 Builder">🧭 <span>Session 0 Builder</span></a>
+            <a class={`nav-item ${isActive('/dm/npcs') ? 'active': ''}`} href="/dm/npcs" title="NPCs & Lore">🧙 <span>NPCs & Lore</span></a>
+            <a class={`nav-item ${isActive('/dm/assets') ? 'active': ''}`} href="/dm/assets" title="Maps & Assets">🗂️ <span>Maps & Assets</span></a>
+            <a class={`nav-item ${isActive('/dm/logs') ? 'active': ''}`} href="/dm/logs" title="Logs & Notes">📓 <span>Logs & Notes</span></a>
+            <a class={`nav-item ${isActive('/dm/settings') ? 'active': ''}`} href="/dm/settings" title="Rules & Settings">⚙️ <span>Rules & Settings</span></a>
+          </nav>
+        </div>
+
+        <div class="sidebar-footer">
+          <div id="userEmail" class="user-email" aria-live="polite">Signed in as: —</div>
+
+          <div class="sidebar-actions">
+            <!-- DMs only: segmented mode toggle -->
+            <div id="modeToggle" class="seg-toggle" hidden role="tablist" aria-label="View mode">
+              <button id="segPlayer" class="seg" role="tab" aria-selected="true" aria-label="Adventurer mode">Adventurer</button>
+              <button id="segDM" class="seg" role="tab" aria-selected="false" aria-label="DM mode">DM</button>
+            </div>
+
+            <!-- Collapse/expand with stateful icon -->
+            <button id="toggleSidebar" class="btn-outline" aria-pressed="false" title="Collapse/Expand Sidebar">
+              <span class="icon" id="icoExpand" aria-hidden="true" hidden>
+                <!-- expand icon -->
+                <svg viewBox="0 0 24 24" width="18" height="18"><path d="M3 3h8v8H3zM13 3h8v8h-8zM3 13h8v8H3zM15.5 15H14v-2h6v6h-2v-1.5l-3.5 3.5-1.5-1.5 3.5-3.5Z" fill="currentColor"/></svg>
+              </span>
+              <span class="icon" id="icoCollapse" aria-hidden="true">
+                <!-- collapse icon -->
+                <svg viewBox="0 0 24 24" width="18" height="18"><path d="M3 3h8v8H3zM13 3h8v8h-8zM3 13h8v8H3zM16 13h2v1.5l3.5-3.5 1.5 1.5-3.5 3.5H22v2h-6z" fill="currentColor"/></svg>
+              </span>
+              <span>Toggle</span>
+            </button>
+
+            <button id="logoutBtn" class="btn-outline" title="Log out">🚪 <span>Log out</span></button>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Main -->
+      <main class="main-content">
+        <div class="page-content">
+          <slot />
+        </div>
+      </main>
+    </div>
+
+    <!-- Auth + Role + Mode + Sidebar behavior -->
+    <script type="module">
+      import { authPromise, getUserRole, signOutFn, dbPromise } from "/src/lib/firebase/client.js";
+
+      const emailDiv   = document.getElementById("userEmail");
+      const logoutBtn  = document.getElementById("logoutBtn");
+      const toggleBtn  = document.getElementById("toggleSidebar");
+      const modeToggle = document.getElementById("modeToggle");
+      const segPlayer  = document.getElementById("segPlayer");
+      const segDM      = document.getElementById("segDM");
+      const sidebar    = document.getElementById("sidebar");
+      const spinner    = document.getElementById("authSpinner");
+      const icoExpand  = document.getElementById("icoExpand");
+      const icoCollapse= document.getElementById("icoCollapse");
+
+      const navPlayer  = document.getElementById("nav-player");
+      const navDM      = document.getElementById("nav-dm");
+
+      // reveal UI helper
+      const revealUI = () => {
+        document.body.classList.remove("auth-pending");
+        document.body.removeAttribute("aria-busy");
+        spinner?.remove();
+      };
+
+      // collapse state + icon swap
+      const savedCollapsed = localStorage.getItem("pz.sidebar.collapsed") === "1";
+      function applyCollapseIcon() {
+        const isCollapsed = sidebar?.classList.contains("collapsed");
+        if (isCollapsed) {
+          icoExpand?.removeAttribute("hidden");
+          icoCollapse?.setAttribute("hidden","true");
+        } else {
+          icoCollapse?.removeAttribute("hidden");
+          icoExpand?.setAttribute("hidden","true");
+        }
+      }
+      if (savedCollapsed) {
+        sidebar?.classList.add("collapsed");
+        toggleBtn?.setAttribute("aria-pressed", "true");
+      }
+      applyCollapseIcon();
+
+      toggleBtn?.addEventListener("click", () => {
+        const isCollapsed = sidebar?.classList.toggle("collapsed");
+        toggleBtn?.setAttribute("aria-pressed", isCollapsed ? "true" : "false");
+        localStorage.setItem("pz.sidebar.collapsed", isCollapsed ? "1" : "0");
+        applyCollapseIcon();
+      });
+
+      // Mode helpers (UI: "Adventurer", logic key stays "player")
+      function getSavedMode() {
+        return localStorage.getItem("pz.mode") || "player";
+      }
+      function setSavedMode(mode) {
+        localStorage.setItem("pz.mode", mode);
+        segPlayer?.setAttribute("aria-selected", mode === "player" ? "true" : "false");
+        segDM?.setAttribute("aria-selected", mode === "dm" ? "true" : "false");
+      }
+      function applyMode(mode) {
+        navPlayer?.classList.remove("active");
+        navDM?.classList.remove("active");
+        if (mode === "dm") {
+          navDM?.classList.add("active");
+          document.documentElement.setAttribute("data-mode", "dm");
+        } else {
+          navPlayer?.classList.add("active");
+          document.documentElement.setAttribute("data-mode", "player");
+        }
+      }
+
+      async function dmCampaignCount(uid) {
+        try {
+          const db = await dbPromise;
+          const { collection, query, where, getDocs } =
+            await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
+          // Owner-based query; add status filter later if you like.
+          const q = query(collection(db, "campaigns"), where("ownerUid","==", uid));
+          const snap = await getDocs(q);
+          return snap.size || 0;
+        } catch (e) {
+          console.warn("Could not fetch DM campaigns:", e);
+          return -1; // unknown
+        }
+      }
+
+      async function routeOnModeChange(mode, uid) {
+        const p = location.pathname;
+        if (mode === "dm") {
+          const count = await dmCampaignCount(uid);
+          if (count === 0) {
+            if (!p.startsWith("/dm/campaigns/new")) location.href = "/dm/campaigns/new";
+          } else if (count > 0) {
+            if (!p.startsWith("/dm/")) location.href = "/dm/campaigns";
+          } else {
+            // unknown/error: fall back to DM dashboard
+            if (!p.startsWith("/dm/")) location.href = "/dm/dashboard";
+          }
+        } else {
+          if (!p.startsWith("/dashboard")) location.href = "/dashboard";
+        }
+      }
+
+      (async () => {
+        const auth = await authPromise;
+        const { onAuthStateChanged } =
+          await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js");
+
+        onAuthStateChanged(auth, async (user) => {
+          const p = location.pathname;
+          const isAuthRoute = p.startsWith("/login") || p.startsWith("/join");
+
+          if (!user && !isAuthRoute) {
+            location.replace("/login");
+            return;
+          }
+
+          // reveal as soon as we *know* the auth state
+          revealUI();
+
+          if (!user) {
+            emailDiv.textContent = "Not signed in";
+            return;
+          }
+
+          emailDiv.textContent = `Signed in as: ${user.email || "—"}`;
+
+          // Load role
+          let role = "player";
+          try { role = await getUserRole(user.uid); } catch (e) { console.warn(e); }
+
+          // Not a DM → force Adventurer and hide toggle; bounce from /dm/*
+          if (role !== "dm") {
+            modeToggle.hidden = true;
+            setSavedMode("player");
+            applyMode("player");
+            if (p.startsWith("/dm/")) location.replace("/dashboard");
+            if (p === "/") history.replaceState({}, "", "/dashboard");
+            return;
+          }
+
+          // DM → show toggle and apply saved mode
+          modeToggle.hidden = false;
+          let mode = getSavedMode();
+          if (mode !== "player" && mode !== "dm") mode = "player";
+          setSavedMode(mode);
+          applyMode(mode);
+
+          // Hook toggle
+          segPlayer?.addEventListener("click", async () => {
+            setSavedMode("player");
+            applyMode("player");
+            await routeOnModeChange("player", user.uid);
+          });
+          segDM?.addEventListener("click", async () => {
+            setSavedMode("dm");
+            applyMode("dm");
+            await routeOnModeChange("dm", user.uid);
+          });
+
+          // Neutral root honors current mode
+          if (p === "/") {
+            const target = (mode === "dm") ? "/dm/dashboard" : "/dashboard";
+            history.replaceState({}, "", target);
+          }
+        });
+
+        // logout
+        logoutBtn?.addEventListener("click", async () => {
+          try { await signOutFn(); location.href = "/login"; }
+          catch (e) { console.error(e); alert("Logout failed"); }
+        }, { once: true });
+      })();
+    </script>
+  </body>
+</html>

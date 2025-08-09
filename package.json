@@ -9,6 +9,8 @@
     "astro": "astro"
   },
   "dependencies": {
-    "astro": "^5.12.8"
+    "astro": "^5.12.8",
+    "firebase": "^12.1.0",
+    "firebase-admin": "^13.4.0"
   }
 }
